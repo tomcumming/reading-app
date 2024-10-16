@@ -1,0 +1,24 @@
+cabal-version: 3.4
+name: cc-cedict
+version: 0.1.0.0
+license: NONE
+build-type: Simple
+
+library
+    hs-source-dirs: src
+    ghc-options: -Wall
+    default-language: GHC2021
+    default-extensions:
+      LambdaCase
+      OverloadedStrings
+      RecordWildCards
+    build-depends: 
+      base ^>=4.19.1.0,
+      mtl,
+      containers,
+      text,
+      streaming
+    exposed-modules:
+      CCCEdict
+      CCCEdict.Pinyin
+    other-modules:
