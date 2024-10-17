@@ -13,11 +13,20 @@ executable reading-app
       RecordWildCards
       LambdaCase
       OverloadedStrings
+      DataKinds
     build-depends: 
       base ^>=4.19.1.0,
       containers,
       text,
       streaming,
-      cc-cedict
+      cc-cedict,
+      servant,
+      servant-server,
+      wai,
+      warp,
+      servant-blaze,
+      blaze-html
       
     other-modules:
+      ReadingApp.Page.Wrapper
+      ReadingApp.Page.Reading
