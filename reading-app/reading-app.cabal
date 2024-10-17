@@ -28,5 +28,6 @@ executable reading-app
       blaze-html
       
     other-modules:
-      ReadingApp.Page.Wrapper
+      ReadingApp.Page.Import
       ReadingApp.Page.Reading
+      ReadingApp.Page.Wrapper
