@@ -14,10 +14,12 @@ library
       RecordWildCards
     build-depends: 
       base ^>=4.19.1.0,
-      mtl,
       containers,
+      mtl,
+      streaming,
       text,
-      streaming
+      unicode-data-scripts,
+      vector,
     exposed-modules:
       CCCEdict
       CCCEdict.Pinyin

@@ -2,29 +2,32 @@ module CCCEdict
   ( Definition (..),
     parseEntry,
     parseLines,
+    hanWord,
+    zipCharPinyin,
   )
 where
 
-import CCCEdict.Pinyin (Pinyin (..), parsePinyin)
+import CCCEdict.Pinyin (Pinyin, parsePinyin)
 import Control.Category ((>>>))
 import Control.Monad (unless, when)
 import Control.Monad.State.Class (MonadState (get), gets, put, state)
 import Control.Monad.State.Strict (StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import Data.Char (isAscii, isNumber, isSpace)
-import Data.Function ((&))
-import Data.Maybe (catMaybes, fromMaybe)
-import Data.Sequence qualified as Sq
+import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
 import Data.Text qualified as T
+import Data.Vector qualified as V
 import Streaming.Prelude qualified as S
+import Unicode.Char.General.Scripts (Script (Han), script)
 
 data Definition = Definition
   { defSimp :: !T.Text,
     defTrad :: !T.Text,
-    defPinyin :: !(Sq.Seq Pinyin),
-    defTrans :: !(Sq.Seq T.Text)
+    defPinyin :: !(V.Vector T.Text),
+    defTrans :: !(V.Vector T.Text)
   }
+  deriving (Show)
 
 dropCR :: T.Text -> T.Text
 dropCR txt = fromMaybe txt $ T.stripSuffix "\r" txt
@@ -81,22 +84,15 @@ expect c =
 oneSpace :: StateT T.Text (Either T.Text) ()
 oneSpace = expect ' '
 
-parsePinyins :: StateT T.Text (Either T.Text) (Sq.Seq Pinyin)
+parsePinyins :: StateT T.Text (Either T.Text) (V.Vector T.Text)
 parsePinyins = do
   expect '['
-
   pinyinStr <- state (T.span (/= ']'))
-  let pinyinStrs = T.splitOn " " pinyinStr
-  pinyins <-
-    lift $
-      Sq.fromList . catMaybes
-        <$> traverse parsePinyin' pinyinStrs
-
   expect ']'
-  pure pinyins
+  pure $ V.fromList $ T.splitOn " " pinyinStr
 
-parseTrans :: StateT T.Text (Either T.Text) (Sq.Seq T.Text)
-parseTrans = expect '/' >> go
+parseTrans :: StateT T.Text (Either T.Text) (V.Vector T.Text)
+parseTrans = expect '/' >> go >>= (V.fromList >>> pure)
   where
     go =
       gets T.null >>= \case
@@ -104,27 +100,60 @@ parseTrans = expect '/' >> go
         False -> do
           def <- state (T.span (/= '/'))
           expect '/'
-          (def Sq.<|) <$> go
+          (def :) <$> go
 
-parsePinyin' :: T.Text -> Either T.Text (Maybe Pinyin)
+zipCharPinyin ::
+  T.Text ->
+  V.Vector T.Text ->
+  Either
+    T.Text
+    (Maybe (V.Vector (T.Text, Pinyin)))
+zipCharPinyin word pyts
+  | any (`Set.member` ignoredPinyin) pyts = pure Nothing
+  | Set.member word ignoredWords = pure Nothing
+  | "-" `elem` pyts = pure Nothing
+  | otherwise = do
+      pys <- traverse parsePinyin' pyts
+      let cs = V.fromList (T.singleton <$> T.unpack word)
+
+      unless (V.length pys == V.length cs) $
+        Left "Character count doesn't match Pinyin"
+      pure $ Just $ V.zip cs pys
+  where
+    ignoredPinyin :: Set.Set T.Text
+    ignoredPinyin =
+      Set.fromList
+        [ "xx5",
+          "m1",
+          "m2",
+          "m4",
+          "hng5",
+          "hm5"
+        ]
+
+    ignoredWords :: Set.Set T.Text
+    ignoredWords =
+      Set.fromList
+        [ "兙",
+          "兛",
+          "兝",
+          "兞",
+          "兡",
+          "兣",
+          "瓩",
+          "瓰",
+          "瓱",
+          "瓸",
+          "瓼",
+          "粨"
+        ]
+
+hanWord :: T.Text -> Bool
+hanWord = T.all (script >>> (== Han))
+
+parsePinyin' :: T.Text -> Either T.Text Pinyin
 parsePinyin' txt =
-  parsePinyin txt & \case
-    Just py -> pure $ Just py
-    Nothing
-      | Set.member txt knownSillyPinyins -> pure Nothing
-      | otherwise -> Left $ "Could not parse pinyin '" <> txt <> "'"
-
-knownSillyPinyins :: Set.Set T.Text
-knownSillyPinyins =
-  Set.fromList
-    [ "xx5",
-      "-",
-      ",",
-      "·",
-      "m1",
-      "m2",
-      "m4",
-      "hng5",
-      "hm5",
-      ":"
-    ]
+  maybe
+    (Left $ "Parsing pinyin: " <> T.pack (show txt))
+    pure
+    $ parsePinyin txt
