@@ -9,6 +9,7 @@ library
     ghc-options: -Wall
     default-language: GHC2021
     default-extensions:
+      LambdaCase
       RecordWildCards
     build-depends: 
       aeson,

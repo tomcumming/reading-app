@@ -104,19 +104,23 @@ openForWriting DiskData {..} f = IO.withFile ddIndex IO.ReadWriteMode $ \fwIndex
             then do
               unless (dataPos == 0) $ fail $ ddData <> " was expected to be empty"
             else do
+              -- Ensure previous element exists
               prevOff <- indexOffset fwIndex (pred fwItemOffset)
-              unless (dataPos > fromIntegral prevOff) $
-                fail $
-                  "Less data than expected in " <> show ddData
               IO.hSeek fwData IO.AbsoluteSeek (fromIntegral prevOff)
-              lineOffset <- Txt.hGetLine fwData
-              case decodeStrictText lineOffset of
-                Nothing ->
-                  fail $ unwords ["Could not read offset idx", show prevOff, "from", show ddData]
-                Just prevIdx
-                  | succ prevIdx == fwItemOffset -> IO.hSeek fwData IO.SeekFromEnd 0
-                  | otherwise ->
-                      fail $ unwords ["Found offset", show prevIdx, "when pred", show fwItemOffset, "was expected in", show ddData]
+              let prevOffCorr = unwords ["Can't read prev item", show ddData]
+              Txt.hGetLine fwData
+                >>= (decodeStrictText >>> maybe (fail prevOffCorr) pure)
+                >>= \prevIdx ->
+                  unless
+                    (succ prevIdx == fwItemOffset)
+                    (fail $ unwords ["Prev item wrong idx", show ddData])
+              _prevItemTxt <- Txt.hGetLine fwData
+              print =<< IO.hTell fwData
+              print =<< IO.hIsEOF fwData
+              IO.hIsEOF fwData
+                >>= flip
+                  unless
+                  (fail $ unwords ["Expected EOF after last item in", show ddData])
           f ForWriting {..}
       )
 
