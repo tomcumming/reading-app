@@ -4,6 +4,7 @@ module DiskData
     indexOffset,
     appendData,
     streamFrom,
+    fetchSet,
   )
 where
 
@@ -15,9 +16,12 @@ import Data.Aeson.Decoding (decodeStrictText)
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Foldable (forM_)
 import Data.Function ((&))
+import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text.IO ()
 import Data.Text.IO qualified as Txt (hGetLine)
 import Data.Text.Lazy.IO qualified as Txt (hPutStrLn)
+import Data.Traversable (forM)
 import Data.Vector qualified as V
 import Data.Word (Word32, Word64)
 import Foreign qualified as IO
@@ -166,3 +170,22 @@ streamFrom dd fromIndexOff f = do
           case decodeStrictText dataLine of
             Nothing -> fail $ unwords ["Failed to decode item in", show (ddData dd), "at line", show itemOff]
             Just item -> Sm.yield item >> jsonLines hdl (succ itemOff)
+
+fetchSet :: forall a. (FromJSON a) => DiskData -> Set.Set Word32 -> IO (Map.Map Word32 a)
+fetchSet dd idxs = IO.withFile (ddIndex dd) IO.ReadMode $ \hi ->
+  IO.withFile (ddData dd) IO.ReadMode $ \hd ->
+    Map.fromList
+      <$> forM (Set.toList idxs) (goItem hi hd)
+  where
+    goItem :: IO.Handle -> IO.Handle -> Word32 -> IO (Word32, a)
+    goItem hi hd idx = do
+      off <- indexOffset hi idx
+      IO.hSeek hd IO.AbsoluteSeek (fromIntegral off)
+      let itemError = unwords ["Can't read item at", show idx, show (ddData dd)]
+      Txt.hGetLine hd
+        >>= (decodeStrictText >>> maybe (fail itemError) pure)
+        >>= \idx' -> unless (idx == idx') (fail itemError)
+      item <-
+        Txt.hGetLine hd
+          >>= (decodeStrictText >>> maybe (fail itemError) pure)
+      pure (idx, item)
