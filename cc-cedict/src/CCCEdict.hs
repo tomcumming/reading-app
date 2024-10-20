@@ -2,12 +2,9 @@ module CCCEdict
   ( Definition (..),
     parseEntry,
     parseLines,
-    hanWord,
-    zipCharPinyin,
   )
 where
 
-import CCCEdict.Pinyin (Pinyin, parsePinyin)
 import Control.Category ((>>>))
 import Control.Monad (unless, when)
 import Control.Monad.State.Class (MonadState (get), gets, put, state)
@@ -15,11 +12,9 @@ import Control.Monad.State.Strict (StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import Data.Char (isAscii, isNumber, isSpace)
 import Data.Maybe (fromMaybe)
-import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Vector qualified as V
 import Streaming.Prelude qualified as S
-import Unicode.Char.General.Scripts (Script (Han), script)
 
 data Definition = Definition
   { defSimp :: !T.Text,
@@ -101,59 +96,3 @@ parseTrans = expect '/' >> go >>= (V.fromList >>> pure)
           def <- state (T.span (/= '/'))
           expect '/'
           (def :) <$> go
-
-zipCharPinyin ::
-  T.Text ->
-  V.Vector T.Text ->
-  Either
-    T.Text
-    (Maybe (V.Vector (T.Text, Pinyin)))
-zipCharPinyin word pyts
-  | any (`Set.member` ignoredPinyin) pyts = pure Nothing
-  | Set.member word ignoredWords = pure Nothing
-  | "-" `elem` pyts = pure Nothing
-  | otherwise = do
-      pys <- traverse parsePinyin' pyts
-      let cs = V.fromList (T.singleton <$> T.unpack word)
-
-      unless (V.length pys == V.length cs) $
-        Left "Character count doesn't match Pinyin"
-      pure $ Just $ V.zip cs pys
-  where
-    ignoredPinyin :: Set.Set T.Text
-    ignoredPinyin =
-      Set.fromList
-        [ "xx5",
-          "m1",
-          "m2",
-          "m4",
-          "hng5",
-          "hm5"
-        ]
-
-    ignoredWords :: Set.Set T.Text
-    ignoredWords =
-      Set.fromList
-        [ "兙",
-          "兛",
-          "兝",
-          "兞",
-          "兡",
-          "兣",
-          "瓩",
-          "瓰",
-          "瓱",
-          "瓸",
-          "瓼",
-          "粨"
-        ]
-
-hanWord :: T.Text -> Bool
-hanWord = T.all (script >>> (== Han))
-
-parsePinyin' :: T.Text -> Either T.Text Pinyin
-parsePinyin' txt =
-  maybe
-    (Left $ "Parsing pinyin: " <> T.pack (show txt))
-    pure
-    $ parsePinyin txt

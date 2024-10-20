@@ -6,8 +6,11 @@ module CCCEdict.Pinyin
 where
 
 import Control.Applicative ((<|>))
-import Control.Monad (guard)
+import Control.Category ((>>>))
+import Control.Monad (guard, (>=>))
+import Data.Aeson (FromJSON, ToJSON, parseJSON, toJSON)
 import Data.Text qualified as T
+import GHC.Generics (Generic)
 
 data Tone
   = Tone1
@@ -21,6 +24,18 @@ data Pinyin = Pinyin
     pinFinal :: !Final,
     pinTone :: !Tone
   }
+  deriving (Generic)
+
+instance ToJSON Pinyin where
+  toJSON = renderPinyin >>> toJSON
+
+instance FromJSON Pinyin where
+  parseJSON =
+    parseJSON >=> \txt ->
+      maybe
+        (fail $ "Could not parse pinyin: " <> show txt)
+        pure
+        (parsePinyin txt)
 
 data Initial
   = Initb

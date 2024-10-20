@@ -12,13 +12,13 @@ library
       LambdaCase
       OverloadedStrings
       RecordWildCards
-    build-depends: 
+    build-depends:
+      aeson,
       base ^>=4.19.1.0,
       containers,
       mtl,
       streaming,
       text,
-      unicode-data-scripts,
       vector,
     exposed-modules:
       CCCEdict

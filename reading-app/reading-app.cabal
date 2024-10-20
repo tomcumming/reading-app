@@ -7,27 +7,34 @@ build-type: Simple
 executable reading-app
     main-is: Main.hs
     hs-source-dirs: exe
-    ghc-options: -threaded -Wall
+    ghc-options: -Wall
     default-language: GHC2021
     default-extensions:
       RecordWildCards
       LambdaCase
       OverloadedStrings
       DataKinds
-    build-depends: 
+      DerivingVia
+    build-depends:
+      aeson, 
       base ^>=4.19.1.0,
-      containers,
-      text,
-      streaming,
+      blaze-html,
       cc-cedict,
+      containers,
+      directory,
+      diskdata,
       servant,
+      servant-blaze,
       servant-server,
+      streaming,
+      text,
+      unicode-data-scripts,
+      vector,
       wai,
       warp,
-      servant-blaze,
-      blaze-html
       
     other-modules:
+      ReadingApp.Db
       ReadingApp.Page.Import
       ReadingApp.Page.Reading
       ReadingApp.Page.Wrapper

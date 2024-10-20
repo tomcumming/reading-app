@@ -11,6 +11,6 @@ wrapper inner =
       B.link
         B.! Attr.rel "stylesheet"
         B.! Attr.type_ "text/css"
-        B.! Attr.href "/static/simple.css"
-      B.script mempty B.! Attr.src "/static/htmx.js"
+        B.! Attr.href "/static/vendor/simple.css"
+      B.script mempty B.! Attr.src "/static/vendor/htmx.js"
     B.body inner
