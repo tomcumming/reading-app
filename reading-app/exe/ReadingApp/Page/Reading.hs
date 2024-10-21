@@ -3,6 +3,7 @@ module ReadingApp.Page.Reading (API, server) where
 import Data.Text qualified as T
 import GHC.Generics (Generic)
 import ReadingApp.Page.Wrapper (wrapper)
+import ReadingApp.RAM (RAM)
 import Servant.API qualified as Sv
 import Servant.HTML.Blaze qualified as B (HTML)
 import Servant.Server qualified as Sv
@@ -22,7 +23,7 @@ data Routes mode = Routes
 
 type API = Sv.NamedRoutes Routes
 
-server :: Sv.Server API
+server :: Sv.ServerT API RAM
 server =
   Routes
     { rtSearch = \s' -> do

@@ -7,9 +7,11 @@ import Data.Function ((&))
 import Data.Set qualified as Set
 import Data.Text qualified as T
 import GHC.Generics (Generic)
+import ReadingApp.Db (DictId (DictId))
 import ReadingApp.Db qualified as Db
 import ReadingApp.Dict.CCCEdict (hanWord, zipCharPinyin)
 import ReadingApp.Page.Wrapper (wrapper)
+import ReadingApp.RAM (RAM)
 import Servant qualified as Sv
 import Servant.HTML.Blaze qualified as B
 import Streaming.Prelude qualified as S
@@ -27,7 +29,7 @@ data Routes mode = Routes
 
 type API = Sv.NamedRoutes Routes
 
-server :: Sv.Server API
+server :: Sv.ServerT API RAM
 server =
   Routes
     { rtImportCCCE = do
@@ -55,7 +57,7 @@ importCCCedict = do
             & CCCEdict.parseLines
             & S.mapM parseCCCEdictEntry
             & flip S.for S.each
-    Db.addDefinitions "cc-cedict" defsStrm
+    Db.addDefinitions (DictId "cc-cedict") defsStrm
 
 parseCCCEdictEntry :: (MonadFail m) => CCCEdict.Definition -> m (Maybe Db.Definition)
 parseCCCEdictEntry CCCEdict.Definition {..}

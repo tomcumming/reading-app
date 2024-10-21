@@ -1,4 +1,9 @@
-module ReadingApp.Db (Definition (..), addDefinitions) where
+module ReadingApp.Db
+  ( DictId (..),
+    Definition (..),
+    addDefinitions,
+  )
+where
 
 import CCCEdict.Pinyin (Pinyin)
 import Control.Monad (void)
@@ -9,6 +14,9 @@ import Data.Text qualified as T
 import DiskData qualified as DD
 import GHC.Generics (Generic)
 import Streaming.Prelude qualified as S
+
+newtype DictId = DictId {unDictId :: T.Text}
+  deriving (Eq, Ord, Show) via T.Text
 
 data Definition = Definition
   { defMatch :: Set.Set T.Text,
@@ -22,10 +30,10 @@ instance ToJSON Definition
 instance FromJSON Definition
 
 addDefinitions ::
-  T.Text ->
+  DictId ->
   S.Stream (S.Of Definition) IO () ->
   IO ()
-addDefinitions dictName defsStrm = do
+addDefinitions (DictId dictName) defsStrm = do
   let parentDir = "data/dicts"
   let dd = DD.diskData $ parentDir <> "/" <> T.unpack dictName <> ".dict"
   void $ DD.appendData dd defsStrm

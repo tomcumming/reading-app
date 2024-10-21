@@ -23,6 +23,8 @@ executable reading-app
       containers,
       directory,
       diskdata,
+      filepath,
+      mtl,
       servant,
       servant-blaze,
       servant-server,
@@ -35,7 +37,10 @@ executable reading-app
       
     other-modules:
       ReadingApp.Db
+      ReadingApp.Db.Index
       ReadingApp.Dict.CCCEdict
       ReadingApp.Page.Import
       ReadingApp.Page.Reading
+      ReadingApp.Page.Search
       ReadingApp.Page.Wrapper
+      ReadingApp.RAM
