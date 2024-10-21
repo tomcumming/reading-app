@@ -12,15 +12,15 @@ import Control.Monad.State.Strict (StateT, evalStateT)
 import Control.Monad.Trans (lift)
 import Data.Char (isAscii, isNumber, isSpace)
 import Data.Maybe (fromMaybe)
+import Data.Sequence qualified as Sq
 import Data.Text qualified as T
-import Data.Vector qualified as V
 import Streaming.Prelude qualified as S
 
 data Definition = Definition
   { defSimp :: !T.Text,
     defTrad :: !T.Text,
-    defPinyin :: !(V.Vector T.Text),
-    defTrans :: !(V.Vector T.Text)
+    defPinyin :: !(Sq.Seq T.Text),
+    defTrans :: !(Sq.Seq T.Text)
   }
   deriving (Show)
 
@@ -79,15 +79,15 @@ expect c =
 oneSpace :: StateT T.Text (Either T.Text) ()
 oneSpace = expect ' '
 
-parsePinyins :: StateT T.Text (Either T.Text) (V.Vector T.Text)
+parsePinyins :: StateT T.Text (Either T.Text) (Sq.Seq T.Text)
 parsePinyins = do
   expect '['
   pinyinStr <- state (T.span (/= ']'))
   expect ']'
-  pure $ V.fromList $ T.splitOn " " pinyinStr
+  pure $ Sq.fromList $ T.splitOn " " pinyinStr
 
-parseTrans :: StateT T.Text (Either T.Text) (V.Vector T.Text)
-parseTrans = expect '/' >> go >>= (V.fromList >>> pure)
+parseTrans :: StateT T.Text (Either T.Text) (Sq.Seq T.Text)
+parseTrans = expect '/' >> go
   where
     go =
       gets T.null >>= \case
@@ -95,4 +95,4 @@ parseTrans = expect '/' >> go >>= (V.fromList >>> pure)
         False -> do
           def <- state (T.span (/= '/'))
           expect '/'
-          (def :) <$> go
+          (def Sq.:<|) <$> go

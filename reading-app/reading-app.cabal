@@ -35,6 +35,7 @@ executable reading-app
       
     other-modules:
       ReadingApp.Db
+      ReadingApp.Dict.CCCEdict
       ReadingApp.Page.Import
       ReadingApp.Page.Reading
       ReadingApp.Page.Wrapper
