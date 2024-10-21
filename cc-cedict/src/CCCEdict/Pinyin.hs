@@ -144,6 +144,8 @@ takeInitial txt
 
 takeFinal :: T.Text -> Maybe (Final, T.Text)
 takeFinal txt
+  | Just txt' <- T.stripPrefix "ve" txt = Just (Finve, txt')
+  | Just txt' <- T.stripPrefix "v" txt = Just (Finv, txt')
   | Just txt' <- T.stripPrefix "uo" txt = Just (Finuo, txt')
   | Just txt' <- T.stripPrefix "un" txt = Just (Finun, txt')
   | Just txt' <- T.stripPrefix "ui" txt = Just (Finui, txt')
