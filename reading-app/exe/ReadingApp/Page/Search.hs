@@ -4,15 +4,16 @@ import Control.Category ((>>>))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Data.Foldable (toList)
+import Data.Function ((&))
 import Data.IORef (readIORef)
 import Data.Map.Strict qualified as M
-import Data.Maybe (mapMaybe)
 import Data.Text qualified as T
 import DiskData qualified as DD
 import GHC.Generics (Generic)
 import ReadingApp.Db (Definition, DictId (DictId), defTrans, unDictId)
 import ReadingApp.Page.Wrapper (wrapper)
-import ReadingApp.RAM (Env (envPhraseIndex), PhraseIndex, RAM)
+import ReadingApp.PhraseIndex (PhraseIndex, phraseIndexLookup)
+import ReadingApp.RAM (Env (envPhraseIndex), RAM)
 import Servant qualified as Sv
 import Servant.HTML.Blaze qualified as B
 import Text.Blaze.Html5 qualified as B
@@ -58,12 +59,6 @@ testLookup s = do
   pIdx <- asks envPhraseIndex >>= (readIORef >>> liftIO)
   M.traverseWithKey (testLookupDict s) pIdx
 
--- TODO single forward scan of index for each substr
-prefixes :: T.Text -> [T.Text]
-prefixes s = case T.unsnoc s of
-  Nothing -> []
-  Just (pre, _) -> prefixes pre <> [s]
-
 suffixes :: T.Text -> [T.Text]
 suffixes s = case T.uncons s of
   Nothing -> []
@@ -71,8 +66,10 @@ suffixes s = case T.uncons s of
 
 testLookupDict :: T.Text -> DictId -> PhraseIndex -> RAM [Definition]
 testLookupDict s (DictId dictName) pIdx = do
-  let ss = suffixes s >>= prefixes
-  let ms = mapMaybe (`M.lookup` pIdx) ss
+  let ms =
+        suffixes s
+          & fmap (phraseIndexLookup pIdx)
+          & M.unionsWith (<>)
 
   let parentDir = "data/dicts"
   let dd = DD.diskData $ parentDir <> "/" <> T.unpack dictName <> ".dict"

@@ -43,4 +43,5 @@ executable reading-app
       ReadingApp.Page.Reading
       ReadingApp.Page.Search
       ReadingApp.Page.Wrapper
+      ReadingApp.PhraseIndex
       ReadingApp.RAM
