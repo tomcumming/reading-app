@@ -1,6 +1,9 @@
 module ReadingApp.Page.Reading (API, server) where
 
+import Control.Monad.Error.Class (throwError)
 import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
+import Data.Word (Word64)
 import GHC.Generics (Generic)
 import ReadingApp.Page.Wrapper (wrapper)
 import ReadingApp.RAM (RAM)
@@ -9,35 +12,30 @@ import Servant.HTML.Blaze qualified as B (HTML)
 import Servant.Server qualified as Sv
 import Text.Blaze.Html qualified as B
 import Text.Blaze.Html5 qualified as B
-import Text.Blaze.Html5.Attributes qualified as Attr
 
 data Routes mode = Routes
-  { rtSearch ::
+  { rtNextPhrase ::
       mode
-        Sv.:- "search"
-          Sv.:> Sv.QueryParam "s" T.Text
+        Sv.:- "next-phrase"
           Sv.:> Sv.Get '[B.HTML] B.Html,
-    rtRoot :: mode Sv.:- Sv.Get '[B.HTML] B.Html
+    rtRoot :: mode Sv.:- Sv.Get '[Sv.PlainText] Sv.NoContent
   }
   deriving (Generic)
 
 type API = Sv.NamedRoutes Routes
 
-server :: Sv.ServerT API RAM
-server =
+server :: Word64 -> Sv.ServerT API RAM
+server readThroughId =
   Routes
-    { rtSearch = \s' -> do
-        s <- maybe (fail "No search string provided") pure s'
-        pure $ B.p $ "Searched: " <> B.text s,
-      rtRoot = pure $ wrapper $ do
-        B.h1 "Search test"
-        B.input
-          B.! Attr.type_ "search"
-          B.! Attr.placeholder "Word or phrase..."
-          B.! Attr.name "s"
-          B.! B.customAttribute "hx-trigger" "input delay:300ms"
-          B.! B.customAttribute "hx-get" "/reading/search"
-          B.! B.customAttribute "hx-target" "#search-results"
-        B.div "Search results..."
-          B.! Attr.id "search-results"
+    { rtNextPhrase = do
+        pure $ wrapper $ do
+          B.h1 "Enter phrase characters"
+          B.p (B.string (show readThroughId)),
+      rtRoot = do
+        -- TODO safe link
+        let url =
+              "/reading/"
+                <> T.pack (show readThroughId)
+                <> "/next-phrase"
+        throwError $ Sv.err302 {Sv.errHeaders = [("Location", T.encodeUtf8 url)]}
     }

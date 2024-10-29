@@ -3,6 +3,7 @@ module Main (main) where
 import Control.Category ((>>>))
 import Control.Monad.Reader (runReaderT)
 import Data.IORef (newIORef)
+import Data.Word (Word64)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (run)
 import ReadingApp.Db.Index (indexDicts)
@@ -15,7 +16,11 @@ import Servant qualified as Sv
 data Routes mode = Routes
   { rtStatic :: mode Sv.:- "static" Sv.:> Sv.Raw,
     rtImport :: mode Sv.:- "import" Sv.:> Import.API,
-    rtReading :: mode Sv.:- "reading" Sv.:> Reading.API,
+    rtReading ::
+      mode
+        Sv.:- "reading"
+          Sv.:> Sv.Capture "readThroughId" Word64
+          Sv.:> Reading.API,
     rtSearch :: mode Sv.:- "search" Sv.:> Search.API
   }
   deriving (Generic)
