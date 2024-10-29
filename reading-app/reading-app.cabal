@@ -16,7 +16,7 @@ executable reading-app
       DataKinds
       DerivingVia
     build-depends:
-      aeson, 
+      aeson,
       base ^>=4.19.1.0,
       blaze-html,
       cc-cedict,
@@ -24,6 +24,7 @@ executable reading-app
       directory,
       diskdata,
       filepath,
+      http-api-data,
       mtl,
       servant,
       servant-blaze,
@@ -31,10 +32,11 @@ executable reading-app
       streaming,
       text,
       unicode-data-scripts,
+      unordered-containers,
       vector,
       wai,
       warp,
-      
+
     other-modules:
       ReadingApp.Db
       ReadingApp.Db.Index
