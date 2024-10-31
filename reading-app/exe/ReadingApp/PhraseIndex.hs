@@ -49,4 +49,6 @@ phraseIndexLookup = go ""
             <> go (T.snoc t c) pIdx' p'
       | otherwise = here
       where
-        here = Map.singleton t (piPhrases pIdx)
+        here
+          | Set.null (piPhrases pIdx) = mempty
+          | otherwise = Map.singleton t (piPhrases pIdx)

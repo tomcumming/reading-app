@@ -47,3 +47,4 @@ executable reading-app
       ReadingApp.Page.Wrapper
       ReadingApp.PhraseIndex
       ReadingApp.RAM
+      ReadingApp.Tokenize
