@@ -11,7 +11,7 @@ where
 import Control.Category ((>>>))
 import Control.Monad (unless)
 import Control.Monad.Trans (lift)
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (FromJSON, ToJSON, Value)
 import Data.Aeson.Decoding (decodeStrictText)
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Foldable (forM_)
@@ -69,19 +69,17 @@ appendItems ::
   forall a.
   (ToJSON a) =>
   IO.Handle ->
-  Word32 ->
   Sm.Stream (Sm.Of a) IO () ->
   IO (V.Vector Word64)
-appendItems hdl firstItemOff items = do
-  Sm.mapM (uncurry writeItem) (Sm.zip (Sm.each [firstItemOff ..]) items)
+appendItems hdl items = do
+  Sm.mapM writeItem items
     & Sm.fold V.snoc mempty id
     & fmap Sm.fst'
   where
-    writeItem :: (ToJSON a) => Word32 -> a -> IO Word64
-    writeItem itemOff =
+    writeItem :: (ToJSON a) => a -> IO Word64
+    writeItem =
       encodeToLazyText >>> \txt -> do
         off <- IO.hTell hdl
-        Txt.hPutStrLn hdl (encodeToLazyText itemOff)
         Txt.hPutStrLn hdl txt
         pure (fromIntegral off)
 
@@ -112,13 +110,9 @@ openForWriting DiskData {..} f = IO.withFile ddIndex IO.ReadWriteMode $ \fwIndex
               prevOff <- indexOffset fwIndex (pred fwItemOffset)
               IO.hSeek fwData IO.AbsoluteSeek (fromIntegral prevOff)
               let prevOffCorr = unwords ["Can't read prev item", show ddData]
-              Txt.hGetLine fwData
-                >>= (decodeStrictText >>> maybe (fail prevOffCorr) pure)
-                >>= \prevIdx ->
-                  unless
-                    (succ prevIdx == fwItemOffset)
-                    (fail $ unwords ["Prev item wrong idx", show ddData])
-              _prevItemTxt <- Txt.hGetLine fwData
+              prevItemTxt <- Txt.hGetLine fwData
+              decodeStrictText @Value prevItemTxt
+                & maybe (fail prevOffCorr) (const (pure ()))
               print =<< IO.hTell fwData
               print =<< IO.hIsEOF fwData
               IO.hIsEOF fwData
@@ -130,7 +124,7 @@ openForWriting DiskData {..} f = IO.withFile ddIndex IO.ReadWriteMode $ \fwIndex
 
 appendData :: (ToJSON a) => DiskData -> Sm.Stream (Sm.Of a) IO () -> IO Word32
 appendData dd items = openForWriting dd $ \ForWriting {..} -> do
-  fileOffs <- appendItems fwData fwItemOffset items
+  fileOffs <- appendItems fwData items
   IO.hFlush fwData
   appendOffsets fwIndex fileOffs
   pure fwItemOffset
@@ -162,10 +156,6 @@ streamFrom dd fromIndexOff f = do
       if isEof
         then pure ()
         else do
-          offLine <- lift $ Txt.hGetLine hdl
-          unless (decodeStrictText offLine == Just itemOff) $
-            fail $
-              unwords ["Unexpected item offset", show itemOff, show (ddData dd)]
           dataLine <- lift $ Txt.hGetLine hdl
           case decodeStrictText dataLine of
             Nothing -> fail $ unwords ["Failed to decode item in", show (ddData dd), "at line", show itemOff]
@@ -182,9 +172,6 @@ fetchSet dd idxs = IO.withFile (ddIndex dd) IO.ReadMode $ \hi ->
       off <- indexOffset hi idx
       IO.hSeek hd IO.AbsoluteSeek (fromIntegral off)
       let itemError = unwords ["Can't read item at", show idx, show (ddData dd)]
-      Txt.hGetLine hd
-        >>= (decodeStrictText >>> maybe (fail itemError) pure)
-        >>= \idx' -> unless (idx == idx') (fail itemError)
       item <-
         Txt.hGetLine hd
           >>= (decodeStrictText >>> maybe (fail itemError) pure)
