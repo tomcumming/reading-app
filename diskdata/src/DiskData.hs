@@ -1,5 +1,8 @@
 module DiskData
   ( DiskData,
+    ItemIdx (..),
+    FileOffset,
+    start,
     diskData,
     indexOffset,
     appendData,
@@ -36,6 +39,17 @@ data DiskData = DiskData
   }
   deriving (Show)
 
+newtype ItemIdx = ItemIdx {unItemIdx :: Word32}
+  deriving (Eq, Ord, Enum)
+  deriving (Show) via Word32
+
+newtype FileOffset = FileOffset {unFileOffset :: Word64}
+  deriving (Eq, Ord)
+  deriving (Show, IO.Storable) via Word64
+
+start :: ItemIdx
+start = ItemIdx 0
+
 diskData :: FilePath -> DiskData
 diskData ddData =
   DiskData
@@ -46,19 +60,19 @@ diskData ddData =
 int64Size :: Int
 int64Size = 8
 
-indexOffset :: IO.Handle -> Word32 -> IO Word64
-indexOffset hdl itemOff = do
-  let fileOff = fromIntegral int64Size * fromIntegral itemOff
+indexOffset :: IO.Handle -> ItemIdx -> IO FileOffset
+indexOffset hdl itemIdx = do
+  let fileOff = fromIntegral int64Size * fromIntegral (unItemIdx itemIdx)
   IO.hSeek hdl IO.AbsoluteSeek fileOff
   isEof <- IO.hIsEOF hdl
   if isEof
-    then pure (fromIntegral fileOff)
+    then pure (FileOffset (fromIntegral fileOff))
     else do
       buf <- IO.mallocBytes int64Size
       _bytesRead <- IO.hGetBuf hdl buf int64Size
       IO.peek buf
 
-appendOffsets :: IO.Handle -> V.Vector Word64 -> IO ()
+appendOffsets :: IO.Handle -> V.Vector FileOffset -> IO ()
 appendOffsets hdl offs = do
   buf <- IO.mallocBytes int64Size
   forM_ offs $ \off -> do
@@ -70,27 +84,27 @@ appendItems ::
   (ToJSON a) =>
   IO.Handle ->
   Sm.Stream (Sm.Of a) IO () ->
-  IO (V.Vector Word64)
+  IO (V.Vector FileOffset)
 appendItems hdl items = do
   Sm.mapM writeItem items
     & Sm.fold V.snoc mempty id
     & fmap Sm.fst'
   where
-    writeItem :: (ToJSON a) => a -> IO Word64
+    writeItem :: (ToJSON a) => a -> IO FileOffset
     writeItem =
       encodeToLazyText >>> \txt -> do
         off <- IO.hTell hdl
         Txt.hPutStrLn hdl txt
-        pure (fromIntegral off)
+        pure (FileOffset (fromIntegral off))
 
 data ForWriting = ForWriting
   { fwIndex :: IO.Handle,
     fwData :: IO.Handle,
-    fwItemOffset :: Word32
+    fwItemOffset :: ItemIdx
   }
 
-sizeToLength :: Integer -> Word32
-sizeToLength = fromIntegral >>> (`div` fromIntegral int64Size)
+sizeToLength :: Integer -> ItemIdx
+sizeToLength = (`div` fromIntegral int64Size) >>> fromIntegral >>> ItemIdx
 
 -- | Open and test for currupt files
 openForWriting :: DiskData -> (ForWriting -> IO a) -> IO a
@@ -102,13 +116,13 @@ openForWriting DiskData {..} f = IO.withFile ddIndex IO.ReadWriteMode $ \fwIndex
           IO.hSeek fwData IO.SeekFromEnd 0
           fwItemOffset <- sizeToLength <$> IO.hTell fwIndex
           dataPos <- IO.hTell fwData
-          if fwItemOffset == 0
+          if unItemIdx fwItemOffset == 0
             then do
               unless (dataPos == 0) $ fail $ ddData <> " was expected to be empty"
             else do
               -- Ensure previous element exists
               prevOff <- indexOffset fwIndex (pred fwItemOffset)
-              IO.hSeek fwData IO.AbsoluteSeek (fromIntegral prevOff)
+              IO.hSeek fwData IO.AbsoluteSeek (fromIntegral (unFileOffset prevOff))
               let prevOffCorr = unwords ["Can't read prev item", show ddData]
               prevItemTxt <- Txt.hGetLine fwData
               decodeStrictText @Value prevItemTxt
@@ -122,7 +136,7 @@ openForWriting DiskData {..} f = IO.withFile ddIndex IO.ReadWriteMode $ \fwIndex
           f ForWriting {..}
       )
 
-appendData :: (ToJSON a) => DiskData -> Sm.Stream (Sm.Of a) IO () -> IO Word32
+appendData :: (ToJSON a) => DiskData -> Sm.Stream (Sm.Of a) IO () -> IO ItemIdx
 appendData dd items = openForWriting dd $ \ForWriting {..} -> do
   fileOffs <- appendItems fwData items
   IO.hFlush fwData
@@ -133,8 +147,8 @@ streamFrom ::
   forall a b.
   (FromJSON a) =>
   DiskData ->
-  Word32 ->
-  (Sm.Stream (Sm.Of a) IO () -> IO b) ->
+  ItemIdx ->
+  (Sm.Stream (Sm.Of (ItemIdx, a)) IO () -> IO b) ->
   IO b
 streamFrom dd fromIndexOff f = do
   maybeFileOff <- IO.withFile (ddIndex dd) IO.ReadMode $
@@ -147,10 +161,10 @@ streamFrom dd fromIndexOff f = do
   case maybeFileOff of
     Nothing -> f mempty
     Just fileOff -> IO.withFile (ddData dd) IO.ReadMode $ \hdl -> do
-      IO.hSeek hdl IO.AbsoluteSeek (fromIntegral fileOff)
+      IO.hSeek hdl IO.AbsoluteSeek (fromIntegral (unFileOffset fileOff))
       f (jsonLines hdl fromIndexOff)
   where
-    jsonLines :: IO.Handle -> Word32 -> Sm.Stream (Sm.Of a) IO ()
+    jsonLines :: IO.Handle -> ItemIdx -> Sm.Stream (Sm.Of (ItemIdx, a)) IO ()
     jsonLines hdl itemOff = do
       isEof <- lift $ IO.hIsEOF hdl
       if isEof
@@ -159,18 +173,18 @@ streamFrom dd fromIndexOff f = do
           dataLine <- lift $ Txt.hGetLine hdl
           case decodeStrictText dataLine of
             Nothing -> fail $ unwords ["Failed to decode item in", show (ddData dd), "at line", show itemOff]
-            Just item -> Sm.yield item >> jsonLines hdl (succ itemOff)
+            Just item -> Sm.yield (itemOff, item) >> jsonLines hdl (succ itemOff)
 
-fetchSet :: forall a. (FromJSON a) => DiskData -> Set.Set Word32 -> IO (Map.Map Word32 a)
+fetchSet :: forall a. (FromJSON a) => DiskData -> Set.Set ItemIdx -> IO (Map.Map ItemIdx a)
 fetchSet dd idxs = IO.withFile (ddIndex dd) IO.ReadMode $ \hi ->
   IO.withFile (ddData dd) IO.ReadMode $ \hd ->
     Map.fromList
       <$> forM (Set.toList idxs) (goItem hi hd)
   where
-    goItem :: IO.Handle -> IO.Handle -> Word32 -> IO (Word32, a)
+    goItem :: IO.Handle -> IO.Handle -> ItemIdx -> IO (ItemIdx, a)
     goItem hi hd idx = do
       off <- indexOffset hi idx
-      IO.hSeek hd IO.AbsoluteSeek (fromIntegral off)
+      IO.hSeek hd IO.AbsoluteSeek (fromIntegral (unFileOffset off))
       let itemError = unwords ["Can't read item at", show idx, show (ddData dd)]
       item <-
         Txt.hGetLine hd
