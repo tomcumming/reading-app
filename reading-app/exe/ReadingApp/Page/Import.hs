@@ -4,11 +4,9 @@ import CCCEdict qualified
 import Control.Category ((>>>))
 import Control.Monad.IO.Class (liftIO)
 import Data.Function ((&))
-import Data.Set qualified as Set
 import Data.Text qualified as T
 import GHC.Generics (Generic)
-import ReadingApp.Db (DictId (DictId))
-import ReadingApp.Db qualified as Db
+import ReadingApp.Dict qualified as Dicts
 import ReadingApp.Dict.CCCEdict (hanWord, zipCharPinyin)
 import ReadingApp.Page.Wrapper (wrapper)
 import ReadingApp.RAM (RAM)
@@ -52,14 +50,14 @@ importCCCedict :: IO ()
 importCCCedict = do
   print =<< getCurrentDirectory
   S.readFile "data/cedict_1_0_ts_utf-8_mdbg.txt" $ \rawLines -> do
-    let defsStrm =
+    let entries =
           S.map T.pack rawLines
             & CCCEdict.parseLines
             & S.mapM parseCCCEdictEntry
             & flip S.for S.each
-    Db.addDefinitions (DictId "cc-cedict") defsStrm
+    Dicts.addEntries Dicts.BuiltInDict entries
 
-parseCCCEdictEntry :: (MonadFail m) => CCCEdict.Definition -> m (Maybe Db.Definition)
+parseCCCEdictEntry :: (MonadFail m) => CCCEdict.Definition -> m (Maybe Dicts.Entry)
 parseCCCEdictEntry CCCEdict.Definition {..}
   | hanWord defSimp && hanWord defTrad = do
       maybePinyin <-
@@ -68,9 +66,10 @@ parseCCCEdictEntry CCCEdict.Definition {..}
       pure $ do
         py <- maybePinyin
         pure
-          Db.Definition
-            { defMatch = Set.fromList [defSimp, defTrad],
-              defPinyin = py,
-              defTrans
+          Dicts.Entry
+            { entSimp = Just defSimp,
+              entTrad = Just defTrad,
+              entPinyin = py,
+              entDefs = defTrans -- TODO order by usefulnes
             }
   | otherwise = pure Nothing

@@ -1,31 +1,58 @@
-module ReadingApp.Tokenize (Paths (..), tokenize) where
+module ReadingApp.Tokenize (Paths (..), Step (..), tokenize) where
 
 import Control.Monad.State.Strict (State, evalState, gets, modify)
+import Data.Bifunctor (second)
+import Data.Function ((&))
 import Data.Map qualified as M
 import Data.Set qualified as S
 import Data.Text qualified as T
-import Data.Word (Word32)
+import Debug.Trace (traceShowM)
+import ReadingApp.Dict (DictId, DictIndex (..), WordId (WordId))
 import ReadingApp.PhraseIndex (PhraseIndex, phraseIndexLookup)
 
-newtype Paths = Paths {unPaths :: M.Map T.Text Paths}
+-- TODO use DictIndex, store phraseId or whatever
+newtype Paths = Paths {unPaths :: M.Map T.Text Step}
 
-tokenize :: PhraseIndex -> T.Text -> Paths
-tokenize pIdx txt = evalState (tokenizeMemo pIdx txt) mempty
+data Step = Step
+  { stepWords :: !(S.Set WordId),
+    stepPaths :: !Paths
+  }
+
+tokenize :: DictIndex -> T.Text -> Paths
+tokenize dIdx txt = evalState (tokenizeMemo dIdx 0 txt) mempty
 
 -- TODO graphemes rather than Char?
 
-tokenizeMemo :: PhraseIndex -> T.Text -> State (M.Map T.Text Paths) Paths
-tokenizeMemo pIdx txt =
-  gets (M.!? txt) >>= \case
+type TokM = State (M.Map Int Paths)
+
+tokenizeMemo :: DictIndex -> Int -> T.Text -> TokM Paths
+tokenizeMemo dIdx i txt =
+  gets (M.!? i) >>= \case
     Just ps -> pure ps
     Nothing -> case T.uncons txt of
       Nothing -> pure $ Paths mempty
       Just (c, _) -> do
-        fromIndex <- M.traverseWithKey go $ phraseIndexLookup pIdx txt
-        default_ <- M.traverseWithKey go $ M.singleton (T.singleton c) mempty
-        let paths = Paths $ fromIndex `M.union` default_
-        modify (M.insert txt paths)
-        pure paths
+        traceShowM (i, txt)
+        let foundWords = dictIndexLookup dIdx txt
+        let allWords = M.insertWith (<>) (T.singleton c) mempty foundWords
+        ps <- Paths <$> M.traverseWithKey go allWords
+        modify (M.insert i ps)
+        pure ps
   where
-    go :: T.Text -> S.Set Word32 -> State (M.Map T.Text Paths) Paths
-    go p _ = tokenizeMemo pIdx (T.drop (T.length p) txt)
+    go :: T.Text -> S.Set WordId -> TokM Step
+    go p stepWords = do
+      let l = T.length p
+      stepPaths <- tokenizeMemo dIdx (i + l) (T.drop l txt)
+      pure Step {stepWords, stepPaths}
+
+dictIndexLookup :: DictIndex -> T.Text -> M.Map T.Text (S.Set WordId)
+dictIndexLookup (DictIndex dIdxs) txt =
+  M.toList dIdxs
+    >>= uncurry go
+    & M.fromListWith (<>)
+  where
+    go :: DictId -> PhraseIndex -> [(T.Text, S.Set WordId)]
+    go dIdx pIdx =
+      phraseIndexLookup pIdx txt
+        & M.toList
+        & fmap (second (S.mapMonotonic (WordId dIdx)))

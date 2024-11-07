@@ -38,11 +38,10 @@ executable reading-app
       warp,
 
     other-modules:
-      ReadingApp.Db
-      ReadingApp.Db.Index
+      ReadingApp.Dict
       ReadingApp.Dict.CCCEdict
       ReadingApp.Page.Import
-      ReadingApp.Page.Reading
+      ReadingApp.Page.NextWord
       ReadingApp.Page.Search
       ReadingApp.Page.Wrapper
       ReadingApp.PhraseIndex

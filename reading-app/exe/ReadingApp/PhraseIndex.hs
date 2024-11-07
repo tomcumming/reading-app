@@ -8,10 +8,10 @@ where
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Data.Word (Word32)
+import DiskData (ItemIdx)
 
 data PhraseIndex = PhraseIndex
-  { piPhrases :: Set.Set Word32,
+  { piPhrases :: Set.Set ItemIdx,
     piChildren :: Map.Map Char PhraseIndex
   }
 
@@ -25,7 +25,7 @@ instance Semigroup PhraseIndex where
 instance Monoid PhraseIndex where
   mempty = PhraseIndex mempty mempty
 
-phraseIndexSingleton :: T.Text -> Word32 -> PhraseIndex
+phraseIndexSingleton :: T.Text -> ItemIdx -> PhraseIndex
 phraseIndexSingleton p i = case T.uncons p of
   Nothing ->
     PhraseIndex
@@ -38,10 +38,10 @@ phraseIndexSingleton p i = case T.uncons p of
         piChildren = Map.singleton c (phraseIndexSingleton p' i)
       }
 
-phraseIndexLookup :: PhraseIndex -> T.Text -> Map.Map T.Text (Set.Set Word32)
+phraseIndexLookup :: PhraseIndex -> T.Text -> Map.Map T.Text (Set.Set ItemIdx)
 phraseIndexLookup = go ""
   where
-    go :: T.Text -> PhraseIndex -> T.Text -> Map.Map T.Text (Set.Set Word32)
+    go :: T.Text -> PhraseIndex -> T.Text -> Map.Map T.Text (Set.Set ItemIdx)
     go t pIdx p
       | Just (c, p') <- T.uncons p,
         Just pIdx' <- piChildren pIdx Map.!? c =
