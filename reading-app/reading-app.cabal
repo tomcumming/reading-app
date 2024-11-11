@@ -38,6 +38,7 @@ executable reading-app
       warp,
 
     other-modules:
+      ReadingApp.BestPath
       ReadingApp.Dict
       ReadingApp.Dict.CCCEdict
       ReadingApp.Page.Import
