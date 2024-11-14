@@ -17,7 +17,7 @@ justify-self: start;
 }
 </style>`;
 
-export class Readthroughs extends HTMLElement {
+export class ReadThroughs extends HTMLElement {
   /** @type {'loading' | api.ReadThs } */
   readthroughs = "loading";
 
@@ -35,7 +35,7 @@ export class Readthroughs extends HTMLElement {
 
     this.innerHTML = `
       ${style}
-      <h1>Readthroughs</h1>
+      <h1>Read-Throughs</h1>
       <button data-create-new>➕ Create new readthough</button>
       ${rths}
     `;
@@ -44,7 +44,7 @@ export class Readthroughs extends HTMLElement {
     );
   }
 
-  async refreshReadthroughs() {
+  async refreshReadThroughs() {
     const response = await fetch("/readthrough");
     this.readthroughs = await response.json();
     this.render();
@@ -68,23 +68,23 @@ export class Readthroughs extends HTMLElement {
     await response.json();
 
     document.querySelector(createButtonSelector)?.removeAttribute("disabled");
-    this.refreshReadthroughs();
+    this.refreshReadThroughs();
   }
 
   connectedCallback() {
-    this.refreshReadthroughs();
+    this.refreshReadThroughs();
   }
 }
 
-self.customElements.define("reading-readthroughs", Readthroughs);
+self.customElements.define("reading-readthroughs", ReadThroughs);
 
 // TODO sort
 
 /** @type {(rths: api.ReadThs) => string} */
 const renderList = (rths) => `<div class="readthrough-list">
-  ${rths.map(renderReadthroughLink).join("")}
+  ${rths.map(renderReadThroughLink).join("")}
 </div>`;
 
 /** @type {(rth: [number, api.ReadTh]) => string} */
-const renderReadthroughLink = ([rtId, rth]) =>
+const renderReadThroughLink = ([rtId, rth]) =>
   `<a class="button" href="#readthrough/${rtId}">${rth.rthName}</a>`;

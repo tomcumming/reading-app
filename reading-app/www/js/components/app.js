@@ -1,3 +1,18 @@
+/** @type {{
+  pattern: RegExp;
+  render: (match: RegExpMatchArray) => string;
+}[]} */
+const routes = [
+  {
+    pattern: /^$/,
+    render: () => `<reading-readthroughs />`,
+  },
+  {
+    pattern: /^#readthrough\/(\d+)$/,
+    render: ([_, rtId]) => `<reading-readthrough data-id="${rtId}" />`,
+  },
+];
+
 class App extends HTMLElement {
   constructor() {
     super();
@@ -10,14 +25,12 @@ class App extends HTMLElement {
   render() {
     const hash = self.location.hash;
 
-    {
-      const match = /^#readthrough\/(\d+)$/.exec(hash);
-      if (match !== null) throw new Error(`Todo readthrough ${match[1]}`);
-    }
-
-    if (hash === "") {
-      this.innerHTML = `<reading-readthroughs />`;
-      return;
+    for (const { pattern, render } of routes) {
+      const match = pattern.exec(hash);
+      if (match !== null) {
+        this.innerHTML = render(match);
+        return;
+      }
     }
 
     throw new Error(`Unhandled route '${hash}'`);

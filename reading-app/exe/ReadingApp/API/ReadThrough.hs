@@ -1,11 +1,11 @@
-module ReadingApp.API.Readthrough
+module ReadingApp.API.ReadThrough
   ( API,
     server,
   )
 where
 
 import Control.Category ((>>>))
-import Control.Monad (when, (>=>))
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson qualified as Aeson
 import Data.Foldable (fold)
@@ -29,6 +29,10 @@ data Routes mode = Routes
         Sv.:- "create"
           Sv.:> Sv.ReqBody '[Sv.JSON] T.Text
           Sv.:> Sv.Post '[Sv.JSON] ReadThId,
+    rtRead ::
+      mode
+        Sv.:- Sv.Capture "rtId" ReadThId
+          Sv.:> Sv.Get '[Sv.JSON] ReadTh,
     rtRoot :: mode Sv.:- Sv.Get '[Sv.JSON] (M.Map ReadThId ReadTh)
   }
   deriving (Generic)
@@ -37,6 +41,9 @@ type API = Sv.NamedRoutes Routes
 
 newtype ReadThId = ReadThId {unReadThId :: Word32}
   deriving (Eq, Ord, Bounded, Enum, Show) via Word32
+
+instance Sv.FromHttpApiData ReadThId where
+  parseUrlPiece = Sv.parseUrlPiece @Word32 >>> fmap ReadThId
 
 instance Aeson.ToJSON ReadThId where
   toJSON = Aeson.toJSON . unReadThId
@@ -66,6 +73,7 @@ server =
         rtId <- nextReadThId
         writeReadTh rtId rth
         pure rtId,
+      rtRead = loadReadTh >>> liftIO,
       rtRoot = liftIO allReadThs
     }
 
@@ -84,20 +92,18 @@ readThFiles = do
     & maybe (fail "Could not parse readthrough file name") pure
     & fmap (fmap ReadThId >>> S.fromList)
 
+loadReadTh :: ReadThId -> IO ReadTh
+loadReadTh rtId =
+  Aeson.decodeFileStrict (readThrPath rtId)
+    >>= maybe
+      (fail $ "Failed to decode readthrough " <> show rtId)
+      pure
+
 allReadThs :: IO (M.Map ReadThId ReadTh)
 allReadThs =
   readThFiles
-    >>= ( S.toList
-            >>> fmap (\rtId -> (rtId, readThrPath rtId))
-            >>> M.fromList
-            >>> (traverse Aeson.decodeFileStrict >=> M.traverseWithKey flagErr)
-        )
-  where
-    flagErr :: ReadThId -> Maybe ReadTh -> IO ReadTh
-    flagErr rtId =
-      maybe
-        (fail $ "Failed to decode readthrough " <> show rtId)
-        pure
+    >>= (S.toList >>> traverse (\rtId -> (rtId,) <$> loadReadTh rtId))
+    >>= (M.fromList >>> pure)
 
 nextReadThId :: IO ReadThId
 nextReadThId =
