@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "check": "tsc -P jsconfig.json",
+    "format": "prettier -w reading-app/www/index.html 'reading-app/www/js/**/*'"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

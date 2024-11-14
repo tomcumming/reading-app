@@ -17,6 +17,9 @@
           (pkgs.haskell-language-server.override { supportedGhcVersions = [ "98" ]; })
           pkgs.ormolu
 
+          pkgs.watchexec
+
+          pkgs.nodejs_22
         ];
       };
       formatter."${system}" = pkgs.nixpkgs-fmt;

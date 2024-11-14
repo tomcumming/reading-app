@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": true,
+    "module": "esnext",
+    "target": "esnext",
+    "noEmit": true
+  },
+  "include": ["reading-app/www/js/**/*.js"]
+}
