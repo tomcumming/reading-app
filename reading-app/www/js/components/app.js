@@ -3,17 +3,30 @@ class App extends HTMLElement {
     super();
 
     this.render();
+
+    self.addEventListener("hashchange", () => this.onHashChange());
   }
 
   render() {
-    // TODO handle route change
-    // console.log(self.location.hash);
+    const hash = self.location.hash;
 
-    this.innerHTML = `<reading-readthroughs />`;
+    {
+      const match = /^#readthrough\/(\d+)$/.exec(hash);
+      if (match !== null) throw new Error(`Todo readthrough ${match[1]}`);
+    }
+
+    if (hash === "") {
+      this.innerHTML = `<reading-readthroughs />`;
+      return;
+    }
+
+    throw new Error(`Unhandled route '${hash}'`);
   }
 
-  connectedCallback() {
-    // TODO hash change handler
+  connectedCallback() {}
+
+  onHashChange() {
+    this.render();
   }
 }
 
