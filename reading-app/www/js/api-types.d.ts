@@ -5,3 +5,8 @@ export type ReadTh = {
 };
 
 export type ReadThs = [number, ReadTh][];
+
+export type Choice = {
+  choText: string;
+  choRest: string[];
+};

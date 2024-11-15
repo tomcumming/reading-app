@@ -1,4 +1,4 @@
-/** @import {State} from './readthrough-types.d.ts' */
+/** @import {State} from './readthrough/types.d.ts' */
 /** @import * as api from '../api-types.d.ts' */
 
 export class ReadThrough extends HTMLElement {
@@ -33,7 +33,9 @@ export class ReadThrough extends HTMLElement {
     if ("loading" in this.state) {
       this.innerHTML = "<p> Loading... </p>";
     } else {
-      this.innerHTML = "<p> TODO tokenize </p>";
+      this.innerHTML = `
+        <reading-tokenizer data-id="${this.currentId()}" />
+      `;
     }
   }
 }
