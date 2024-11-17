@@ -9,3 +9,11 @@ export function querySelector(type, query) {
   if (element instanceof type) return element;
   throw new Error(`Element wrong type '${query}'`);
 }
+
+/** @argument elem {unknown}
+@returns {HTMLElement[]} */
+export function parentElements(elem) {
+  if (elem instanceof HTMLElement)
+    return [elem, ...parentElements(elem.parentElement)];
+  else return [];
+}

@@ -1,10 +1,10 @@
-import { querySelector } from "../dom.js";
+import { parentElements, querySelector } from "../dom.js";
 
 export default null;
 
 const inputElem = querySelector(HTMLInputElement, `input[name="tokenize"]`);
 
-const resultsElem = querySelector(HTMLElement, ".tokenize-choices");
+const choicesElem = querySelector(HTMLElement, ".tokenize-choices");
 
 /** @type {undefined | number} */
 let debounce;
@@ -23,7 +23,26 @@ async function tokenize() {
     `/readthrough/${rtId}/tokenize-choices?search=${search}`,
   ).then((res) => res.text());
 
-  resultsElem.innerHTML = resultsHtml;
+  choicesElem.innerHTML = resultsHtml;
+}
+
+/** @argument e {Event} */
+function onChoiceClick(e) {
+  const button = parentElements(e.target).find(
+    (x) => x instanceof HTMLButtonElement,
+  );
+  if (!(button instanceof HTMLButtonElement)) throw new Error();
+
+  const token = button.getAttribute("data-token");
+  const rest = button.getAttribute("data-rest");
+  const skip = button.classList.contains("skip");
+  if (token === null || rest === null) throw new Error();
+
+  inputElem.setAttribute("disabled", "");
+  choicesElem
+    .querySelectorAll("button")
+    .forEach((button) => button.setAttribute("disabled", ""));
 }
 
 inputElem.addEventListener("input", onInput);
+choicesElem.addEventListener("click", onChoiceClick);

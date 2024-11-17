@@ -3,7 +3,8 @@ module ReadingApp.Pages.ReadThrough (API, server) where
 import Control.Category ((>>>))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader.Class (asks)
-import Data.Foldable (forM_)
+import Data.Char (isSpace)
+import Data.Foldable (fold, forM_)
 import Data.Function ((&))
 import Data.IORef (readIORef)
 import Data.Map qualified as M
@@ -49,20 +50,33 @@ testReadThroughPage rtId = wrapperMarkup head_ $ do
         B.! At.src "/js/pages/readthrough.js"
 
 renderChoices :: [Choice] -> B.Html
-renderChoices choices
-  | null choices = B.p "Enter phrase..."
-  | otherwise = forM_ choices $ \Choice {..} ->
-      B.button B.! At.class_ "choice" $ do
+renderChoices = \case
+  [] -> B.p "Enter phrase..."
+  choices@(firstChoice : _) ->
+    makeChoice True firstChoice
+      <> forM_ choices (makeChoice False)
+  where
+    makeChoice isSkip Choice {..} = B.button
+      B.! At.class_ class_
+      B.! B.dataAttribute "token" (B.textValue choText)
+      B.! B.dataAttribute "rest" (fold choRest & B.textValue)
+      $ do
         B.span (B.text choText)
         forM_ choRest $ B.text >>> B.span
+      where
+        class_ = (if isSkip then "skip " else "") <> "choice"
 
 handleTokenize :: ReadThId -> Maybe T.Text -> RAM [Choice]
 handleTokenize _rtId maybeSearch = do
-  search <- maybe (fail "No search provided") pure maybeSearch
+  let maybeSearch' = fmap processSearch maybeSearch
+  search <- maybe (fail "No search provided") pure maybeSearch'
 
   dictIdx <- asks envDictIndex >>= (readIORef >>> liftIO)
   let tokens = tokenize dictIdx search
   makeChoices tokens & pure
+
+processSearch :: T.Text -> T.Text
+processSearch = T.filter (isSpace >>> not)
 
 makeChoices :: Tokens -> [Choice]
 makeChoices tokens = do

@@ -8,13 +8,30 @@ div.buttons {
 }
 
 .tokenize-choices {
-  > .choice {
+  > button.choice {
     display: flex;
-    gap: 0.25em;
+
+    border: 0;
+    padding: 0;
+
+    --skip-shade: #00000044;
 
     > span {
-      background: #ffffff66;
-      border-radius: 0.5em;
+      padding: 0.5em 0.25em;
+
+      &:nth-child(1) {
+        padding-left: 0.5em;
+      }
+
+      &:not(:nth-child(1)) {
+        background-color: var(--skip-shade);
+      }
+    }
+
+    &.skip {
+      > span:nth-child(1) {
+        background-color: var(--skip-shade);
+      }
     }
   }
 }
