@@ -18,6 +18,7 @@ executable reading-app
     build-depends:
       aeson,
       base ^>=4.19.1.0,
+      blaze-html,
       cc-cedict,
       containers,
       directory,
@@ -26,6 +27,7 @@ executable reading-app
       http-api-data,
       mtl,
       servant,
+      servant-blaze,
       servant-server,
       streaming,
       text,
@@ -36,10 +38,16 @@ executable reading-app
       warp,
 
     other-modules:
+      ReadingApp.API
       ReadingApp.API.ReadThrough
+      ReadingApp.API.ReadThroughs
       ReadingApp.BestPath
+      ReadingApp.Db.ReadThrough
       ReadingApp.Dict
       ReadingApp.Dict.CCCEdict
+      ReadingApp.Pages.ReadThrough
+      ReadingApp.Pages.ReadThroughs
       ReadingApp.PhraseIndex
       ReadingApp.RAM
       ReadingApp.Tokenize
+      ReadingApp.Views.Wrapper

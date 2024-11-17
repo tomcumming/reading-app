@@ -1,28 +1,22 @@
-module Main (main) where
+module Main (main, API) where
 
 import Control.Category ((>>>))
 import Control.Monad.Reader (runReaderT)
 import Data.IORef (newIORef)
-import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (run)
-import ReadingApp.API.ReadThrough qualified as ReadThrough
+import ReadingApp.API (API, Routes (..))
 import ReadingApp.Dict qualified as Dicts
+import ReadingApp.Pages.ReadThrough qualified as ReadThrough
+import ReadingApp.Pages.ReadThroughs qualified as ReadThroughsPage
 import ReadingApp.RAM (Env (..), RAM)
 import Servant qualified as Sv
-
-data Routes mode = Routes
-  { rtReadthough :: mode Sv.:- "readthrough" Sv.:> ReadThrough.API,
-    rtRoot :: mode Sv.:- Sv.Raw
-  }
-  deriving (Generic)
-
-type API = Sv.NamedRoutes Routes
 
 server :: Sv.ServerT API RAM
 server =
   Routes
-    { rtReadthough = ReadThrough.server,
-      rtRoot = Sv.serveDirectoryFileServer "reading-app/www"
+    { rtReadThrough = ReadThrough.server,
+      rtRoot = ReadThroughsPage.server,
+      rtStatic = Sv.serveDirectoryFileServer "reading-app/www"
     }
 
 app :: Env -> Sv.Application

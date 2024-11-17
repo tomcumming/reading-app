@@ -1,0 +1,20 @@
+div.buttons {
+  display: grid;
+  justify-items: start;
+
+  > .right {
+    justify-self: end;
+  }
+}
+
+.tokenize-choices {
+  > .choice {
+    display: flex;
+    gap: 0.25em;
+
+    > span {
+      background: #ffffff66;
+      border-radius: 0.5em;
+    }
+  }
+}
