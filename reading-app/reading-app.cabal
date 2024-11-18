@@ -10,11 +10,11 @@ executable reading-app
     ghc-options: -Wall
     default-language: GHC2021
     default-extensions:
-      RecordWildCards
-      LambdaCase
-      OverloadedStrings
       DataKinds
       DerivingVia
+      LambdaCase
+      OverloadedStrings
+      RecordWildCards
     build-depends:
       aeson,
       base ^>=4.19.1.0,

@@ -12,7 +12,12 @@ async function onClickCreate() {
   if (name !== null) {
     createButton.setAttribute("disabled", "");
 
-    const res = await fetch("/readthrough/create");
+    const url = `/readthrough/create/${self.encodeURIComponent(name)}`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify(name),
+    });
     if (res.status !== 200) throw new Error(res.status.toString());
 
     self.location.reload();

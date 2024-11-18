@@ -7,7 +7,9 @@ div.buttons {
   }
 }
 
-.tokenize-choices {
+.tokenize-choices > form {
+  display: contents;
+
   > button.choice {
     display: flex;
 
