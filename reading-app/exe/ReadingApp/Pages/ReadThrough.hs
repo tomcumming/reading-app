@@ -1,22 +1,23 @@
 module ReadingApp.Pages.ReadThrough (API, server) where
 
 import Control.Category ((>>>))
-import Control.Monad (unless)
+import Control.Monad (unless, (>=>))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader.Class (asks)
 import Data.Char (isSpace)
-import Data.Foldable (fold, forM_)
+import Data.Foldable (find, fold, forM_, toList)
 import Data.Function ((&))
 import Data.IORef (readIORef)
 import Data.Map qualified as M
+import Data.Maybe (catMaybes)
 import Data.Sequence qualified as Seq
 import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Data.Void (Void)
 import ReadingApp.API (readThroughLink)
-import ReadingApp.API.ReadThrough (API, Choice (..), Chosen (..), ReadTh (..), ReadThId, Routes (..), UserChosenToken (..))
+import ReadingApp.API.ReadThrough (API, CharIdx (..), Choice (..), Chosen (..), Practice (..), ReadTh (..), ReadThId, ReadThState (..), Routes (..), UserChosenToken (..))
 import ReadingApp.BestPath (bestPathFrom, bestPaths, tokenText)
-import ReadingApp.Db.ReadThrough (loadReadTh, nextReadThId, writeReadTh)
+import ReadingApp.Db.ReadThrough (loadReadTh, nextReadThId, strokeDataPath, writeReadTh)
 import ReadingApp.RAM (RAM, envDictIndex)
 import ReadingApp.Tokenize (Tokens, tokenize)
 import ReadingApp.Views.Wrapper (wrapperMarkup)
@@ -28,10 +29,7 @@ server :: Sv.ServerT API RAM
 server =
   Routes
     { rtCreate = createNew >>> liftIO,
-      rtRead = \rtId -> do
-        rth <- loadReadTh rtId & liftIO
-        choices <- handleTokenize rtId (rthUnTokenized rth)
-        testReadThroughPage rtId rth (renderChoices choices) & pure,
+      rtRead = readThroughPage,
       rtTokenizeChoices = \rtId maybeSearch -> do
         search <- maybe (fail "No search provided") pure maybeSearch
         choices <- handleTokenize rtId search
@@ -44,12 +42,25 @@ createNew rthName = do
   rtId <- nextReadThId
   rthLastView <- getCurrentTime
   let rthCurrentPhrase = mempty
-  let rt = ReadTh {rthName, rthLastView, rthCurrentPhrase, rthUnTokenized = ""}
+  let rthPractice = Nothing
+  let rt = ReadTh {rthUnTokenized = "", ..}
   writeReadTh rtId rt
   pure rtId
 
-testReadThroughPage :: ReadThId -> ReadTh -> B.Html -> B.Html
-testReadThroughPage rtId ReadTh {..} renderedChoices = wrapperMarkup head_ $ do
+readThroughPage :: ReadThId -> RAM B.Html
+readThroughPage rtId = do
+  rth <- loadReadTh rtId & liftIO
+  case rthPractice rth of
+    Nothing -> do
+      choices <- renderChoices <$> handleTokenize rtId (rthUnTokenized rth)
+      renderTokenize rtId rth choices & pure
+    Just Practice {..} -> case praState of
+      StStrokeOrder _ -> fail "TODO stroke order"
+      StPronounce _ -> fail "TODO stroke order"
+      StTrans -> fail "TODO trans"
+
+renderTokenize :: ReadThId -> ReadTh -> B.Html -> B.Html
+renderTokenize rtId ReadTh {..} renderedChoices = wrapperMarkup head_ $ do
   unless (Seq.null rthCurrentPhrase)
     $ B.p
       B.! At.class_ "current-phrase"
@@ -118,17 +129,45 @@ makeChoices tokens = do
   let rest = bestPathFrom paths $ T.length choText
   pure Choice {choText, choRest = tokenText <$> rest}
 
+strokePaths :: Seq.Seq T.Text -> RAM (Seq.Seq (CharIdx, FilePath))
+strokePaths =
+  Seq.traverseWithIndex (\i c -> fmap (CharIdx i,) <$> strokeDataPath c)
+    >=> (toList >>> catMaybes >>> Seq.fromList >>> pure)
+
+nextState :: Seq.Seq T.Text -> Maybe ReadThState -> RAM (Maybe ReadThState)
+nextState chars = \case
+  Nothing -> nextStrokeOrder Nothing
+  Just (StStrokeOrder i) -> nextStrokeOrder (Just i)
+  Just (StPronounce i) -> nextPronounce (Just i)
+  Just StTrans -> fail "TODO nextState StTrans"
+  where
+    nextStrokeOrder :: Maybe CharIdx -> RAM (Maybe ReadThState)
+    nextStrokeOrder existing = do
+      let f = maybe (const True) (<) existing
+      maybeStroke <-
+        strokePaths chars
+          & fmap (find (fst >>> f) >=> (fst >>> StStrokeOrder >>> Just))
+      maybe (nextPronounce Nothing) (Just >>> pure) maybeStroke
+
+    nextPronounce :: Maybe CharIdx -> RAM (Maybe ReadThState)
+    nextPronounce _ = fail "TODO nextPronounce"
+
 chooseNextToken :: ReadThId -> UserChosenToken -> RAM Void
 chooseNextToken rtId UserChosenToken {..} = do
   ReadTh {..} <- loadReadTh rtId & liftIO
   let chosen = Chosen {csnText = chtToken, csnSkipped = chtSkipped}
+
+  let chars = T.unpack chtToken & fmap T.singleton & Seq.fromList
+  praState <- nextState chars Nothing
+
   rthLastView' <- liftIO getCurrentTime
   let rth =
         ReadTh
           { rthName,
             rthCurrentPhrase = rthCurrentPhrase Seq.|> chosen,
             rthLastView = rthLastView',
-            rthUnTokenized = chtRest
+            rthUnTokenized = chtRest,
+            rthPractice = Practice chars <$> praState
           }
   writeReadTh rtId rth & liftIO
   let uri = readThroughLink rtId

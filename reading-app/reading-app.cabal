@@ -42,6 +42,7 @@ executable reading-app
       ReadingApp.API.ReadThrough
       ReadingApp.API.ReadThroughs
       ReadingApp.BestPath
+      ReadingApp.Config
       ReadingApp.Db.ReadThrough
       ReadingApp.Dict
       ReadingApp.Dict.CCCEdict

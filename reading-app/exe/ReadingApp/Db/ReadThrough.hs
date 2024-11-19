@@ -3,20 +3,27 @@ module ReadingApp.Db.ReadThrough
     loadReadTh,
     allReadThs,
     writeReadTh,
+    strokeDataPath,
   )
 where
 
 import Control.Category ((>>>))
 import Control.Monad (when)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader.Class (asks)
 import Data.Aeson qualified as Aeson
+import Data.Bool (bool)
 import Data.Foldable (fold)
 import Data.Function ((&))
 import Data.Map qualified as M
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as S
+import Data.Text qualified as T
 import ReadingApp.API.ReadThrough (ReadTh, ReadThId (..))
+import ReadingApp.Config (cfgStrokeData)
+import ReadingApp.RAM (RAM, envConfig)
 import System.Directory (copyFile, doesFileExist, listDirectory)
-import System.FilePath (dropExtension, takeExtension)
+import System.FilePath (dropExtension, takeExtension, (<.>), (</>))
 import Text.Read (readMaybe)
 
 readThDir :: FilePath
@@ -58,3 +65,11 @@ writeReadTh rtId rth = do
   exists <- doesFileExist path
   when exists $ copyFile path (path <> ".old")
   Aeson.encodeFile path rth
+
+strokeDataPath :: T.Text -> RAM (Maybe FilePath)
+strokeDataPath char = do
+  dir <- asks (envConfig >>> cfgStrokeData)
+  let p = dir </> T.unpack char <.> "json"
+  doesFileExist p
+    & liftIO
+    & fmap (bool Nothing (Just p))

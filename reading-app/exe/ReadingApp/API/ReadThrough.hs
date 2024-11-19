@@ -54,11 +54,35 @@ instance Aeson.ToJSON ReadThId where
 
 instance Aeson.ToJSONKey ReadThId
 
+newtype CharIdx = CharIdx {unCharIdx :: Int}
+  deriving (Eq, Ord, Aeson.ToJSON, Aeson.FromJSON) via Int
+
+data ReadThState
+  = StStrokeOrder CharIdx
+  | StPronounce CharIdx
+  | StTrans
+  deriving (Generic)
+
+instance Aeson.ToJSON ReadThState
+
+instance Aeson.FromJSON ReadThState
+
+data Practice = Practice
+  { praPhrase :: Seq.Seq T.Text,
+    praState :: ReadThState
+  }
+  deriving (Generic)
+
+instance Aeson.ToJSON Practice
+
+instance Aeson.FromJSON Practice
+
 data ReadTh = ReadTh
   { rthName :: T.Text,
     rthLastView :: UTCTime,
     rthCurrentPhrase :: Seq.Seq Chosen,
-    rthUnTokenized :: T.Text
+    rthUnTokenized :: T.Text,
+    rthPractice :: Maybe Practice
   }
   deriving (Generic)
 

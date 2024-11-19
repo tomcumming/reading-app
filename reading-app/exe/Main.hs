@@ -5,6 +5,7 @@ import Control.Monad.Reader (runReaderT)
 import Data.IORef (newIORef)
 import Network.Wai.Handler.Warp (run)
 import ReadingApp.API (API, Routes (..))
+import ReadingApp.Config (loadConfig)
 import ReadingApp.Dict qualified as Dicts
 import ReadingApp.Pages.ReadThrough qualified as ReadThrough
 import ReadingApp.Pages.ReadThroughs qualified as ReadThroughsPage
@@ -29,6 +30,7 @@ app env =
 
 main :: IO ()
 main = do
+  envConfig <- loadConfig
   envDictIndex <- Dicts.loadDictIndex >>= newIORef
-  let env = Env {envDictIndex}
+  let env = Env {..}
   run 8080 (app env)
