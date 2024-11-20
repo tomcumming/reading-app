@@ -41,7 +41,7 @@ data DiskData = DiskData
 
 newtype ItemIdx = ItemIdx {unItemIdx :: Word32}
   deriving (Eq, Ord, Enum)
-  deriving (Show) via Word32
+  deriving (Show, ToJSON, FromJSON) via Word32
 
 newtype FileOffset = FileOffset {unFileOffset :: Word64}
   deriving (Eq, Ord)

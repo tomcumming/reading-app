@@ -57,19 +57,19 @@ instance Aeson.ToJSONKey ReadThId
 newtype CharIdx = CharIdx {unCharIdx :: Int}
   deriving (Eq, Ord, Aeson.ToJSON, Aeson.FromJSON) via Int
 
-data ReadThState
-  = StStrokeOrder CharIdx
-  | StPronounce CharIdx
-  | StTrans
+data ReadThLastLearn
+  = LastStrokeOrder CharIdx
+  | LastPronounce CharIdx
+  | LastTranslate
   deriving (Generic)
 
-instance Aeson.ToJSON ReadThState
+instance Aeson.ToJSON ReadThLastLearn
 
-instance Aeson.FromJSON ReadThState
+instance Aeson.FromJSON ReadThLastLearn
 
 data Practice = Practice
   { praPhrase :: Seq.Seq T.Text,
-    praState :: ReadThState
+    praLast :: Maybe ReadThLastLearn
   }
   deriving (Generic)
 

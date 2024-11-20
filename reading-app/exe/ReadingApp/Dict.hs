@@ -6,6 +6,7 @@ module ReadingApp.Dict
     loadDictIndex,
     refreshDictIndex,
     addEntries,
+    lookupPhrase,
   )
 where
 
@@ -14,13 +15,16 @@ import Control.Category ((>>>))
 import Control.Monad (void)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Bifunctor (second)
+import Data.Foldable (fold)
+import Data.Function ((&))
 import Data.Map qualified as M
 import Data.Sequence qualified as Sq
+import Data.Set qualified as S
 import Data.Set qualified as Set
 import Data.Text qualified as T
 import DiskData qualified as DD
 import GHC.Generics (Generic)
-import ReadingApp.PhraseIndex (PhraseIndex, phraseIndexSingleton)
+import ReadingApp.PhraseIndex (PhraseIndex, phraseIndexFind, phraseIndexSingleton)
 import Streaming.Prelude qualified as Sm
 import System.Directory (doesFileExist)
 
@@ -90,3 +94,18 @@ addEntries :: DictId -> Sm.Stream (Sm.Of Entry) IO () -> IO ()
 addEntries dId defsStrm = do
   let dd = DD.diskData (dictPath dId)
   void $ DD.appendData dd defsStrm
+
+lookupEntries :: DictId -> S.Set DD.ItemIdx -> IO (M.Map WordId Entry)
+lookupEntries dId items = do
+  let dd = DD.diskData (dictPath dId)
+  DD.fetchSet dd items & fmap (M.mapKeys (WordId dId))
+
+lookupPhrase :: DictIndex -> T.Text -> IO (M.Map WordId Entry)
+lookupPhrase dIdx phrase =
+  unDictIndex dIdx
+    & M.traverseWithKey
+      ( \dId pIdx ->
+          phraseIndexFind pIdx phrase
+            & lookupEntries dId
+      )
+    & fmap fold

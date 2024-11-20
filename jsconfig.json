@@ -2,9 +2,11 @@
   "compilerOptions": {
     "checkJs": true,
     "strict": true,
-    "module": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "target": "esnext",
     "noEmit": true
   },
-  "include": ["reading-app/www/js/**/*.js"]
+  "include": ["reading-app/www/js/**/*.js"],
+  "exclude": ["reading-app/www/js/hanzi-writer/**/*"]
 }

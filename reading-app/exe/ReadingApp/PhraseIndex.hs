@@ -2,10 +2,13 @@ module ReadingApp.PhraseIndex
   ( PhraseIndex,
     phraseIndexSingleton,
     phraseIndexLookup,
+    phraseIndexFind,
   )
 where
 
+import Control.Category ((>>>))
 import Data.Map qualified as Map
+import Data.Set qualified as S
 import Data.Set qualified as Set
 import Data.Text qualified as T
 import DiskData (ItemIdx)
@@ -52,3 +55,12 @@ phraseIndexLookup = go ""
         here
           | Set.null (piPhrases pIdx) = mempty
           | otherwise = Map.singleton t (piPhrases pIdx)
+
+-- | Find exact match
+phraseIndexFind :: PhraseIndex -> T.Text -> S.Set ItemIdx
+phraseIndexFind pIdx =
+  T.uncons >>> \case
+    Nothing -> piPhrases pIdx
+    Just (c, rest) -> case piChildren pIdx Map.!? c of
+      Nothing -> mempty
+      Just pIdx' -> phraseIndexFind pIdx' rest

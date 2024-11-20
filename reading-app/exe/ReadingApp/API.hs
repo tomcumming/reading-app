@@ -11,6 +11,7 @@ import Text.Blaze.Html5 qualified as B
 
 data Routes mode = Routes
   { rtReadThrough :: mode Sv.:- "readthrough" Sv.:> ReadThrough.API,
+    rtHanziWriterData :: mode Sv.:- "hanzi-writer" Sv.:> Sv.Raw,
     rtRoot :: mode Sv.:- ReadThroughs.API,
     rtStatic :: mode Sv.:- Sv.Raw
   }

@@ -1,4 +1,4 @@
-import { parentElements, querySelector } from "../dom.js";
+import { parentElements, querySelector } from "../../dom.js";
 
 export default null;
 

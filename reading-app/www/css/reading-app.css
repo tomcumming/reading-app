@@ -37,3 +37,12 @@ div.buttons {
     }
   }
 }
+
+.char-in-ctx {
+  font-size: 2em;
+  > .current {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-style: wavy;
+  }
+}
